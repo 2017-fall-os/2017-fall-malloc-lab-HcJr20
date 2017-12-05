@@ -3,7 +3,7 @@
 #include <assert.h>
 #include <unistd.h>
 #include "myAllocator.h"
-
+#include <string.h>
 /*
   This is a simple endogenous first-fit allocator.  
 
@@ -23,7 +23,7 @@
   All blocks are allocated from an arena extending from arenaBegin to
   arenaEnd.  In particular, the first block's prefix is at address
   arenaBegin, and the last block's suffix is at address
-  arenaEnd-suffixSize. 
+  arenaEnd-xsuffixSize. 
 
   This allocator generally refers to a block by the address of its
   prefix.  The address of the prefix to block b's successor is the
@@ -308,29 +308,31 @@ void *resizeRegion(void *r, size_t newSize) {
     oldSize = 0;		/* non-existant regions have size 0 */
   if (oldSize >= newSize)	/* old region is big enough */
     return r;
-  else {
-    int spaceSize = computeUsableSpace(getNextPrefix(regionToPrefix(r)));
-    if( newSize <= (spaceSize + oldSize)){
-      void *currentPrefix = regionToPrefix(r);
-      int desiredSize = newSize - oldSize;
-      int availableSize = spaceSize - desiredSize;
+  int availableSpace = computeUsableSpace(getNextPrefix(regionToPrefix(r)));
+  if( newSize <= (oldSize + availableSpace)){
+      if(getNextPrefix(regionToPrefix(r))->allocated == 0){
+	regionToPrefix(r) ->allocated = 0;
+	size_t availS = align8(newSize);
+	BlockPrefix_t *p = coalescePrev(getNextPrefix(regionToPrefix(r)));
+	if (p) {                      /* found a block */
+	    size_t availSize = computeUsableSpace(p);
+	    if ( (availS + prefixSize + suffixSize + 8) <= availSize) {
+	        void *freeSliverStart = (void *)p + prefixSize + suffixSize + availS;   
+                void *freeSliverEnd = computeNextPrefixAddr(p);
+	        makeFreeBlock(freeSliverStart, freeSliverEnd - freeSliverStart);               makeFreeBlock(p, freeSliverStart - (void *)p);
+	    }                                                                        
 
-      BlockPrefix_t *newPrefix = makeFreeBlock(getNextPrefix(currentPrefix) + desiredSize, availableSize);
-      BlockSuffix_t *newSuffix = computePrevSuffixAddr(newPrefix);
-
-      newSuffix->prefix = (currentPrefix);
-      currentPrefix = newSuffix;
-
-      return currentPrefix;
+	}
+	regionToPrefix(r)->allocated = 1;
+	return prefixToRegion(p);
+      }
     }
-    /* allocate new region & copy old data */
     char *o = (char *)r;	/* treat both regions as char* */
-    char *n = (char *)firstFitAllocRegion(newSize); 
-    int i;
-    for (i = 0; i < oldSize; i++) /* copy byte-by-byte, should use memcpy */
-      n[i] = o[i];
+    char *n = (char *)bestFitAllocRegion(newSize); 
+    memcpy(n, o, oldSize);
     freeRegion(o);		/* free old region */
     return (void *)n;
-  }
 }
+
+
 

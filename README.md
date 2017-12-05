@@ -27,3 +27,15 @@ The cygwin runtime uses malloc() and brk() extensively.  It is
 interesting to compare the output of test1 & myAllocatorTest1.  All
 those extra allocated regions are being used by cygwin's libraries!
 
+Submission Date December 10 2017
+Author Hector Cervantes
+Class Operating Systems
+
+// Finished implementing the resize region and implemented the Best Fit Algorithm
+
+The program allocates and resizes any region by a specified size.
+
+    BestFit: The code is supposed to allocate region of excact or similar size if it exists, other wise create a new region if all regions are allocated or fill an empty a region of exact size or similar.
+
+    ResizeRegion: My extension of the resize region should grab an already allocate region and expand it to a specified size. If the current region is not sufficient it will store the newly created region to another region of a more suitable size.
+    
